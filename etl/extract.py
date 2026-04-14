@@ -28,7 +28,8 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Conecta a MongoDB y jala las colecciones ratings, movies y tags como
+# dataFrames de Polars para que transform.py los pueda procesar.
 # ---------------------------------------------------------------------------
 
 def connect_mongo() -> MongoClient:
@@ -55,7 +56,7 @@ def collection_to_df(client: MongoClient, collection_name: str, projection: dict
 
 
 # ---------------------------------------------------------------------------
-# Extract functions
+# Extraer funciones a utilizar más tarde.
 # ---------------------------------------------------------------------------
 
 def extract_ratings(client: MongoClient) -> pl.DataFrame:

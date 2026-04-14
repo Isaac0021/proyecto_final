@@ -99,6 +99,27 @@
       background: #1a1a10;
     }
 
+    .movie-poster {
+      width: 100%;
+      aspect-ratio: 2/3;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-bottom: 0.6rem;
+      display: block;
+    }
+    .movie-poster-placeholder {
+      width: 100%;
+      aspect-ratio: 2/3;
+      background: var(--border);
+      border-radius: 4px;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 2rem;
+    }
+
     .movie-title {
       font-size: 0.88rem;
       font-weight: 500;
@@ -125,7 +146,7 @@
     .star {
       font-size: 1.2rem;
       cursor: pointer;
-      color: var(--border);
+      color: var(#7a6a23);
       transition: color 0.15s;
     }
     .star.active, .star:hover { color: var(--accent); }
@@ -224,6 +245,26 @@
     }
     .rec-rank.top { color: var(--accent); }
 
+    .rec-poster {
+      width: 50px;
+      height: 75px;
+      object-fit: cover;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .rec-poster-placeholder {
+      width: 50px;
+      height: 75px;
+      background: var(--border);
+      border-radius: 4px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 1.2rem;
+    }
+
     .rec-info { flex: 1; }
     .rec-title {
       font-size: 1rem;
@@ -309,6 +350,11 @@
          data-title="{{ movie.title }}"
          onclick="toggleCard(this)">
       <span class="selected-badge">RATED</span>
+      {% if movie.poster %}
+        <img class="movie-poster" src="{{ movie.poster }}" alt="{{ movie.title }}" loading="lazy">
+      {% else %}
+        <div class="movie-poster-placeholder">🎬</div>
+      {% endif %}
       <div class="movie-title">{{ movie.title }}</div>
       <div class="movie-genres">
         {% for g in movie.genres[:3] %}
@@ -440,20 +486,19 @@
     list.innerHTML = "";
 
     recs.forEach((r, i) => {
-      const genres = Array.isArray(r.genres) ? r.genres.slice(0, 3).join(", ") : "";
-      const card   = document.createElement("div");
+      const genres     = Array.isArray(r.genres) ? r.genres.slice(0, 3).join(", ") : "";
+      const posterHTML = r.poster
+        ? `<img class="rec-poster" src="${r.poster}" alt="${r.title}" loading="lazy">`
+        : `<div class="rec-poster-placeholder">🎬</div>`;
+      const card = document.createElement("div");
       card.className = "rec-card";
       card.style.animationDelay = `${i * 60}ms`;
       card.innerHTML = `
         <div class="rec-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
+        ${posterHTML}
         <div class="rec-info">
           <div class="rec-title">${r.title}</div>
           <div class="rec-genres">${genres}</div>
-        </div>
-        <div class="rec-score">
-          <div class="score-val">${r.predicted_rating}</div>
-          <span class="score-label">predicted ★</span>
-        </div>
       `;
       list.appendChild(card);
     });

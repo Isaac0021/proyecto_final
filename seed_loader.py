@@ -12,7 +12,7 @@ DB_NAME = os.getenv("DB_NAME")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME")
 
 # ---------------------------------------------------------------------------
-# Config
+# Configuracion datos para cargar a MongoDB
 # ---------------------------------------------------------------------------
 
 DATA_DIR = os.path.join(BASE_DIR, "data", "raw")
@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Steps
+# Pasos de conexion y carga
 # ---------------------------------------------------------------------------
 
 def connect_mongo() -> MongoClient:

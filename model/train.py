@@ -53,7 +53,7 @@ def load_ratings_from_mongo() -> list:
 
 
 # ---------------------------------------------------------------------------
-# Entrenamiento
+# Split de datos en entrenamiento y prueba
 # ---------------------------------------------------------------------------
 
 def train(records: list):
@@ -87,7 +87,7 @@ def train(records: list):
 
 
 # ---------------------------------------------------------------------------
-# Save artifacts
+# Guardar modelo y resultados de métricas
 # ---------------------------------------------------------------------------
 
 def save_artifacts(model, trainset, metrics: dict):

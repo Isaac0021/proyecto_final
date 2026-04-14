@@ -26,7 +26,8 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Load extracted parquet files
+# Cargar archvivos parquet creados por utilizar la libreria polars para crear
+# dataframes.
 # ---------------------------------------------------------------------------
 
 def load_extracted() -> tuple:
@@ -40,23 +41,19 @@ def load_extracted() -> tuple:
 
 
 # ---------------------------------------------------------------------------
-# Cleaning
+# Ratings películas.
 # ---------------------------------------------------------------------------
 
 def clean_ratings(ratings: pl.DataFrame) -> pl.DataFrame:
     log.info("Cleaning ratings...")
     before = ratings.height
 
-    # Drop nulls
     ratings = ratings.drop_nulls()
 
-    # Drop duplicate (userId, movieId) pairs — keep last
     ratings = ratings.unique(subset=["userId", "movieId"], keep="last")
 
-    # Drop out-of-range ratings
     ratings = ratings.filter(pl.col("rating").is_between(0.5, 5.0))
 
-    # Cast types
     ratings = ratings.with_columns([
         pl.col("userId").cast(pl.Int64),
         pl.col("movieId").cast(pl.Int64),
@@ -71,10 +68,8 @@ def clean_ratings(ratings: pl.DataFrame) -> pl.DataFrame:
 def clean_movies(movies: pl.DataFrame) -> pl.DataFrame:
     log.info("Cleaning movies...")
 
-    # Drop nulls
     movies = movies.drop_nulls(subset=["movieId", "title"])
 
-    # Extract year from title e.g. "Toy Story (1995)" → 1995
     movies = movies.with_columns(
         pl.col("title")
         .str.extract(r"\((\d{4})\)$", 1)
@@ -82,7 +77,6 @@ def clean_movies(movies: pl.DataFrame) -> pl.DataFrame:
         .alias("year")
     )
 
-    # Clean title — remove the year part
     movies = movies.with_columns(
         pl.col("title").str.replace(r"\s*\(\d{4}\)$", "").str.strip_chars().alias("title")
     )
@@ -105,11 +99,11 @@ def clean_tags(tags: pl.DataFrame) -> pl.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# Feature engineering
+# Crear nuevo dataset, unificando los diferentes csv's que tenemos para
+# poder accesar y predecir sobre una sola fuente.
 # ---------------------------------------------------------------------------
 
 def compute_movie_stats(ratings: pl.DataFrame) -> pl.DataFrame:
-    """Per-movie: avg rating, rating count, rating std."""
     log.info("Computing movie-level stats...")
     stats = ratings.group_by("movieId").agg([
         pl.col("rating").mean().alias("avg_rating"),
@@ -122,9 +116,7 @@ def compute_movie_stats(ratings: pl.DataFrame) -> pl.DataFrame:
     log.info("Movie stats computed — %s movies", f"{stats.height:,}")
     return stats
 
-
 def compute_user_stats(ratings: pl.DataFrame) -> pl.DataFrame:
-    """Per-user: number of ratings given, avg rating given."""
     log.info("Computing user-level stats...")
     stats = ratings.group_by("userId").agg([
         pl.col("rating").count().alias("user_rating_count"),
@@ -135,9 +127,7 @@ def compute_user_stats(ratings: pl.DataFrame) -> pl.DataFrame:
     log.info("User stats computed — %s users", f"{stats.height:,}")
     return stats
 
-
 def aggregate_tags(tags: pl.DataFrame) -> pl.DataFrame:
-    """Aggregate tags per movie into a single list."""
     log.info("Aggregating tags per movie...")
     agg = tags.group_by("movieId").agg(
         pl.col("tag").alias("tags")
@@ -147,7 +137,7 @@ def aggregate_tags(tags: pl.DataFrame) -> pl.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# Build processed dataset
+# Construir nuevo dataset con cambios hechos.
 # ---------------------------------------------------------------------------
 
 def build_processed(
@@ -159,18 +149,14 @@ def build_processed(
 ) -> pl.DataFrame:
     log.info("Building processed dataset...")
 
-    # Join movie stats onto movies
     movies_enriched = movies.join(movie_stats, on="movieId", how="left")
 
-    # Join tag list onto movies
     movies_enriched = movies_enriched.join(tag_agg, on="movieId", how="left")
 
-    # Fill movies with no tags
     movies_enriched = movies_enriched.with_columns(
         pl.col("tags").fill_null([])
     )
 
-    # Join everything onto ratings (the base of each record)
     processed = (
         ratings
         .join(movies_enriched, on="movieId", how="left")

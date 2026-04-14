@@ -31,7 +31,8 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Toma el dataset limpio de transform.py y lo guarda en processed, que
+# será la fuente de datos para el modelo y app.
 # ---------------------------------------------------------------------------
 
 def connect_mongo() -> MongoClient:

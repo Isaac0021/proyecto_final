@@ -24,7 +24,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Load model artifacts
+# Cargar modelo
 # ---------------------------------------------------------------------------
 
 def load_model() -> tuple:
@@ -41,18 +41,20 @@ def load_model() -> tuple:
 
 
 # ---------------------------------------------------------------------------
-# Fetch movie metadata
+# Extraer datos de cada película y los mete en un diccionario.
 # ---------------------------------------------------------------------------
 
 def fetch_all_movies(client: MongoClient) -> dict:
-    """Returns a dict of movieId -> {title, genres}"""
     db     = client[DB_NAME]
     cursor = db["movies"].find({}, {"movieId": 1, "title": 1, "genres": 1, "_id": 0})
     return {doc["movieId"]: doc for doc in cursor}
 
 
 # ---------------------------------------------------------------------------
-# Recommend
+# El usuario califica mínimo 3 películas, el modelo toma los factores
+# de las películas que le gustaron (≥3.5 estrellas) para
+# construir un "vector de gustos", y luego encuentra las películas más
+# similares a ese vector usando similitud coseno.
 # ---------------------------------------------------------------------------
 
 def recommend(user_ratings: list[dict], top_n: int = 10) -> list[dict]:
@@ -68,19 +70,17 @@ def recommend(user_ratings: list[dict], top_n: int = 10) -> list[dict]:
     high_rated    = [r for r in user_ratings if r["rating"] >= 3.5]
 
     if not high_rated:
-        high_rated = user_ratings  # fallback if nothing rated highly
+        high_rated = user_ratings
 
-    # Get latent factors for each highly rated movie
     liked_factors = []
     for r in high_rated:
         try:
             iid = trainset.to_inner_iid(r["movieId"])
-            liked_factors.append(model.qi[iid] * r["rating"])  # weight by rating
+            liked_factors.append(model.qi[iid] * r["rating"])
         except ValueError:
             continue
 
     if not liked_factors:
-        # No overlap with training data at all — fall back to top rated
         predictions = []
         for movie_id, movie_info in all_movies.items():
             if movie_id in rated_ids:
@@ -95,10 +95,8 @@ def recommend(user_ratings: list[dict], top_n: int = 10) -> list[dict]:
         predictions.sort(key=lambda x: x["predicted_rating"], reverse=True)
         return predictions[:top_n]
 
-    # Build a "taste vector" = average of liked movie factors
     taste_vector = np.mean(liked_factors, axis=0)
 
-    # Score every unrated movie by cosine similarity to taste vector
     predictions = []
     for movie_id, movie_info in all_movies.items():
         if movie_id in rated_ids:
@@ -124,21 +122,8 @@ def recommend(user_ratings: list[dict], top_n: int = 10) -> list[dict]:
     return predictions[:top_n]
 
 # ---------------------------------------------------------------------------
-# Main (quick test)
+# Main
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    # Example: user rated a few movies
-    sample_ratings = [
-        {"movieId": 1,   "rating": 5.0},   # Toy Story
-        {"movieId": 296, "rating": 4.5},   # Pulp Fiction
-        {"movieId": 318, "rating": 4.0},   # Shawshank Redemption
-    ]
-
-    results = recommend(sample_ratings, top_n=10)
-
-    print("\nTop 10 Recommendations:")
-    print("-" * 50)
-    for i, r in enumerate(results, 1):
-        genres = ", ".join(r["genres"]) if r["genres"] else "N/A"
-        print(f"{i:2}. {r['title']:<40} {r['predicted_rating']} ⭐  [{genres}]")
+    main()
